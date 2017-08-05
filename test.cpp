@@ -8,7 +8,7 @@
 
 #include "zipped_range.hpp"
 
-#define BOOST_TEST_MODULE example
+#define BOOST_TEST_MODULE zipped_range_tests
 #include <boost/test/unit_test.hpp>
 
 namespace
