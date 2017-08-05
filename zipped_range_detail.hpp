@@ -148,10 +148,12 @@ namespace DETAIL
         boost::forward_traversal_tag,
         REF_T>
     {
+        public:
+            ZIPPED_ITER_IMPL(INNER_ITERS_T iter_tuple) : m_iter_tuple(iter_tuple) { }
+        
+        private:
         friend class boost::iterator_core_access;
         template<typename... ARGS> friend class ZIPPED_RANGE_IMPL;
-
-        ZIPPED_ITER_IMPL(INNER_ITERS_T iter_tuple) : m_iter_tuple(iter_tuple) { }
 
         REF_T dereference() const
         {
@@ -173,8 +175,8 @@ namespace DETAIL
     };
 
     template
-        <typename... ARGS>
-    class ZIPPED_RANGE_IMPL
+    <typename... ARGS>
+    class ZIPPED_RANGE_TRAITS
     {
     private:
         using BOOST_MPL_ARGS = boost::mpl::vector<ARGS...>;
@@ -187,15 +189,22 @@ namespace DETAIL
         using VALUE_TYPE_TUPLE = typename DETAIL::MPL_VECTOR_TO_TUPLE<VALUE_TYPE_MPL_ARGS>::type;
         using ITER_TYPE_TUPLE = typename DETAIL::MPL_VECTOR_TO_TUPLE<ITERATOR_MPL_ARGS>::type;
         using ZIPPED_ITER = ZIPPED_ITER_IMPL<ITER_TYPE_TUPLE, REF_TYPE_MPL_ARGS, REF_TYPE_TUPLE, VALUE_TYPE_TUPLE>;
-
-        ZIPPED_RANGE_IMPL(ITER_TYPE_TUPLE begin, ITER_TYPE_TUPLE end) : m_begin(begin), m_end(end) { }
-
-        ZIPPED_ITER begin() const { return m_begin; }
-        ZIPPED_ITER end() const { return m_end; }
-    private:
-        ZIPPED_ITER m_begin;
-        ZIPPED_ITER m_end;
+        using ZIPPED_RANGE = boost::iterator_range<ZIPPED_ITER>;
     };
+
+    template
+    <typename... ARGS>
+    auto make_begin(ARGS&&... args) -> typename DETAIL::ZIPPED_RANGE_TRAITS<ARGS...>::ZIPPED_ITER
+    {
+        return std::make_tuple(std::begin(args)...);
+    }
+
+    template
+    <typename... ARGS>
+    auto make_end(ARGS&&... args) -> typename DETAIL::ZIPPED_RANGE_TRAITS<ARGS...>::ZIPPED_ITER
+    {
+        return std::make_tuple(std::end(args)...);
+    }
 
 } /* namespace DETAIL */
 } /* namespace ZIPPED_RANGE */
