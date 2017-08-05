@@ -20,27 +20,24 @@ namespace ZIPPED_RANGE
 namespace DETAIL
 {
     template
-        <class T>
-    class EXTRACT_ITERATOR_VALUE_TYPE
+    <typename T>
+    struct EXTRACT_ITERATOR_VALUE_TYPE
     {
-    public:
         using type = typename std::iterator_traits<T>::value_type;
     };
 
     template
-        <class T>
-    class EXTRACT_ITERATOR_REF_TYPE
+    <typename T>
+    struct EXTRACT_ITERATOR_REF_TYPE
     {
-    public:
         using type = typename std::iterator_traits<T>::reference;
     };
 
     template
-        <class MPL_VECTOR_T>
+    <typename MPL_VECTOR_T>
     class MPL_VECTOR_TO_TUPLE
     {
     private:
-
         template <typename Seq, typename T>
         struct add_to_types;
 
@@ -55,7 +52,7 @@ namespace DETAIL
     };
 
     template
-        <class T, class REF_MPL_ARGS_T, std::size_t N>
+    <typename T, typename REF_MPL_ARGS_T, std::size_t N>
     class DEREF_ITER_TUPLE_MAKER
     {
         template <typename ERASE_T>
@@ -83,7 +80,7 @@ namespace DETAIL
     };
 
     template
-        <class T, class REF_MPL_ARGS_T>
+    <typename T, typename REF_MPL_ARGS_T>
     class DEREF_ITER_TUPLE_MAKER<T, REF_MPL_ARGS_T, 1>
     {
     public:
@@ -94,10 +91,9 @@ namespace DETAIL
     };
 
     template
-        <class T, std::size_t N>
-    class ITER_TUPLE_CMP
+    <typename T, std::size_t N>
+    struct ITER_TUPLE_CMP
     {
-    public:
         static bool get(const T& lhs, const T& rhs)
         {
             return
@@ -107,10 +103,9 @@ namespace DETAIL
     };
 
     template
-        <class T>
-    class ITER_TUPLE_CMP<T, 1>
+    <typename T>
+    struct ITER_TUPLE_CMP<T, 1>
     {
-    public:
         static bool get(const T& lhs, const T& rhs)
         {
             return std::get<0>(lhs) == std::get<0>(rhs);
@@ -118,10 +113,9 @@ namespace DETAIL
     };
 
     template
-        <class T, std::size_t N>
-    class ITER_TUPLE_INCR
+    <typename T, std::size_t N>
+    struct ITER_TUPLE_INCR
     {
-    public:
         static void incr(T& t)
         {
             std::get<N - 1>(t)++;
@@ -130,18 +124,32 @@ namespace DETAIL
     };
 
     template
-        <class T>
-    class ITER_TUPLE_INCR<T, 1>
+    <typename T>
+    struct ITER_TUPLE_INCR<T, 1>
     {
-    public:
         static void incr(T& t)
         {
             std::get<0>(t)++;
         }
     };
 
+    /**
+     * Implementation of a forward style zipped iterator that wraps around a tuple of
+     * the individual iterators from each sequence that was zipped together
+     * Template args:-
+     * INNER_ITERS_T  - Tuple of iterators from the sequences that were zipped
+     * REF_MPL_ARGS_T - boost::mpl::vector of the reference type of the individual
+     *                  sequence iterators. We need this to derive the return types
+     *                  of the internal dereference tuple maker of this zipped iterator
+     *                  implementation.
+     * REF_T          - Tuple of reference types of the individual sequence iterators.
+     *                  This is the return type of the dereference operator on this
+     *                  zipped iterator.
+     * VAL_T          - Tuple of value types of the individual sequence iterators. This
+     *                  is only needed as a template argument to boost::iterator_facade
+     */
     template
-        <typename INNER_ITERS_T, typename REF_MPL_ARGS_T, typename REF_T, typename VAL_T>
+    <typename INNER_ITERS_T, typename REF_MPL_ARGS_T, typename REF_T, typename VAL_T>
     class ZIPPED_ITER_IMPL : public boost::iterator_facade<
         ZIPPED_ITER_IMPL<INNER_ITERS_T, REF_MPL_ARGS_T, REF_T, VAL_T>,
         VAL_T,
@@ -174,24 +182,50 @@ namespace DETAIL
         INNER_ITERS_T m_iter_tuple;
     };
 
+    /**
+     * Helper class to extract type traits from the given variadic list of iterable sequences we
+     * are zipping up
+     */
     template
     <typename... ARGS>
     class ZIPPED_RANGE_TRAITS
     {
     private:
+        // Convert the variadic list of iterable sequences we need to zip up into a boost::mpl::vector
+        // of types because they allow us to do funky transformations
         using BOOST_MPL_ARGS = boost::mpl::vector<ARGS...>;
+        // Remove references from the sequence types
         using NO_REF_MPL_ARGS = typename boost::mpl::transform<BOOST_MPL_ARGS, std::remove_reference<boost::mpl::_1>>::type;
+        // Convert the sequence types into their iterator types. Using boost::range_iterator which makes sure we get
+        // the pointer types for std::array and C style fixed arrays
         using ITERATOR_MPL_ARGS = typename boost::mpl::transform<NO_REF_MPL_ARGS, boost::range_iterator<boost::mpl::_1>>::type;
+        // Extract the value types of the iterator using iterator traits. We need the helper class because that's how
+        // boost mpl lambda requies us to do it
         using VALUE_TYPE_MPL_ARGS = typename boost::mpl::transform<ITERATOR_MPL_ARGS, EXTRACT_ITERATOR_VALUE_TYPE<boost::mpl::_1>>::type;
+        // Extract the iterator reference type. This is the type we will return a tuple of when the zipped iterator is
+        // dereferenced
         using REF_TYPE_MPL_ARGS = typename boost::mpl::transform<ITERATOR_MPL_ARGS, EXTRACT_ITERATOR_REF_TYPE<boost::mpl::_1>>::type;
     public:
+        // Convert some of the above boost::mpl::vector(s) into std::tuple of the args in the mpl::vector
+        // The Zipped iterator dereference will return this
         using REF_TYPE_TUPLE = typename DETAIL::MPL_VECTOR_TO_TUPLE<REF_TYPE_MPL_ARGS>::type;
+        // boost::iterator_facade requires us to provide the non reference value type as well
+        // so we make this type too
         using VALUE_TYPE_TUPLE = typename DETAIL::MPL_VECTOR_TO_TUPLE<VALUE_TYPE_MPL_ARGS>::type;
+        // Tuple of iterators from the individual container that our zipped iterator class
+        // wraps around
         using ITER_TYPE_TUPLE = typename DETAIL::MPL_VECTOR_TO_TUPLE<ITERATOR_MPL_ARGS>::type;
+        // The actual zipped iterator class
         using ZIPPED_ITER = ZIPPED_ITER_IMPL<ITER_TYPE_TUPLE, REF_TYPE_MPL_ARGS, REF_TYPE_TUPLE, VALUE_TYPE_TUPLE>;
+        // Boost iterator range of our zipped iterator which is what client API will presumably
+        // use to iterate
         using ZIPPED_RANGE = boost::iterator_range<ZIPPED_ITER>;
     };
 
+    /**
+     * Make the "begin" iterator of the zipped range for the given variadic list of iterable
+     * sequences
+     */
     template
     <typename... ARGS>
     auto make_begin(ARGS&&... args) -> typename DETAIL::ZIPPED_RANGE_TRAITS<ARGS...>::ZIPPED_ITER
@@ -199,6 +233,10 @@ namespace DETAIL
         return std::make_tuple(std::begin(args)...);
     }
 
+    /**
+     * Make the "end" iterator of the zipped range for the given variadic list of iterable
+     * sequences
+     */
     template
     <typename... ARGS>
     auto make_end(ARGS&&... args) -> typename DETAIL::ZIPPED_RANGE_TRAITS<ARGS...>::ZIPPED_ITER
