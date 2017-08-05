@@ -23,7 +23,13 @@
  * >
  * Note that the individual elements are reference types. Hence, the objects
  * may be mutated. If the zipped range is passed in const sequences, the
- * objects will be const references as well.
+ * objects will be const references as well. However, the tuple itself is
+ * a tempoary. Hence you can't bind a lvalue reference to it. ie the following
+ * will not be possible:-
+ * for(auto& t : ZIPPED_RANGE::make_range(...))
+ * But the following are possible:-
+ * for(const auto& t : ZIPPED_RANGE::make_range(...))
+ * for(auto t : ZIPPED_RANGE::make_range(...))
  *
  * WARNING: Even though element mutation is allowed, care must be taken to
  * not do any operation on the containers that might invalidate their

@@ -19,6 +19,12 @@ namespace ZIPPED_RANGE
 {
 namespace DETAIL
 {
+    /**
+     * Extract iterator value_type from the passed in iterator
+     * type. This extra function is necessary because the 
+     * boost::mpl lambda functions except the metafunction to
+     * return the type via a "type" member
+     */
     template
     <typename T>
     struct EXTRACT_ITERATOR_VALUE_TYPE
@@ -26,6 +32,12 @@ namespace DETAIL
         using type = typename std::iterator_traits<T>::value_type;
     };
 
+    /**
+     * Extract iterator reference type from the passed in iterator
+     * type. This extra function is necessary because the 
+     * boost::mpl lambda functions except the metafunction to
+     * return the type via a "type" member
+     */
     template
     <typename T>
     struct EXTRACT_ITERATOR_REF_TYPE
@@ -33,28 +45,52 @@ namespace DETAIL
         using type = typename std::iterator_traits<T>::reference;
     };
 
+    /**
+     * Helper utility to convert a boost::mpl::vector of N types
+     * into a std::tuple of N types in the same order
+     */
     template
     <typename MPL_VECTOR_T>
     class MPL_VECTOR_TO_TUPLE
     {
     private:
+        /**
+         * Undefined type when the sequence being created
+         * is not a tuple
+         */
         template <typename Seq, typename T>
-        struct add_to_types;
+        struct ADD_TO_TYPES;
 
+        /**
+         * Specialize the tuple case and add the new
+         * element to the tuple and return a new
+         * tuple type with the concatenated list of
+         * elements
+         */
         template <typename T, typename... Ts>
-        struct add_to_types<std::tuple<Ts...>, T>
+        struct ADD_TO_TYPES<std::tuple<Ts...>, T>
         {
-            typedef std::tuple<Ts..., T> type;
+            using type = std::tuple<Ts..., T>;
         };
 
     public:
-        using type = typename boost::mpl::fold <MPL_VECTOR_T, std::tuple<>, add_to_types<boost::mpl::_1, boost::mpl::_2>>::type;
+        using type = typename boost::mpl::fold <MPL_VECTOR_T, std::tuple<>, ADD_TO_TYPES<boost::mpl::_1, boost::mpl::_2>>::type;
     };
 
+    /**
+     * Helper class to create a tuple of the dereferenced values of
+     * the passed in tuple of iterators. This class is responsible for
+     * creating a tuple from the first to the Nth dereferenced value
+     */
     template
     <typename T, typename REF_MPL_ARGS_T, std::size_t N>
     class DEREF_ITER_TUPLE_MAKER
     {
+        /**
+         * Helper utility to erase the Nth element to the last element
+         * in the ERASE_T boost::mpl::vector
+         * N is the template argument passed in to DEREF_ITER_TUPLE_MAKER
+         */
         template <typename ERASE_T>
         struct ERASE_AFTER_N
         {
@@ -64,12 +100,26 @@ namespace DETAIL
             using type = typename boost::mpl::erase<ERASE_T, BEGIN_ERASE_T, END_T>::type;
         };
 
+        /**
+         * We need to deduce the return type for the "get" function in this class.
+         * becomes unnecessary with c++14 but we need it for MSVC 2013
+         *
+         * So REF_MPL_ARGS_T is a boost::mpl::vector of a tuple of the iterator reference
+         * types. The size of this is the same as the number of sequences that were
+         * zipped together. However, this class is responsible for returning a 
+         * tuple of the 1st to the Nth dereferenced type where N might be smaller
+         * than the number of sequences that were zipped together. Thus, we
+         * use this piece of metaprogramming to erase the types after the
+         * Nth type to create PARTIAL_MPL_ARGS
+         */
         using PARTIAL_MPL_ARGS = typename boost::mpl::eval_if<boost::mpl::less<boost::mpl::int_<N>, boost::mpl::size<REF_MPL_ARGS_T>>,
             ERASE_AFTER_N<REF_MPL_ARGS_T>, REF_MPL_ARGS_T> ::type;
 
     public:
         static auto get(const T& t) -> typename MPL_VECTOR_TO_TUPLE<PARTIAL_MPL_ARGS>::type
         {
+            // forward_as_tuple used to preserve the reference types in
+            // the tuple
             return std::tuple_cat(
                 DEREF_ITER_TUPLE_MAKER<T, REF_MPL_ARGS_T, N - 1>::get(t),
                 std::forward_as_tuple(
@@ -79,6 +129,12 @@ namespace DETAIL
         }
     };
 
+    /**
+     * Base case for the dereferenced iterator tuple maker.
+     * This just dereferences the first iterator and wraps
+     * it in a tuple. The tuple wrapping is done so that
+     * the main template can std::tuple_cat the result
+     */
     template
     <typename T, typename REF_MPL_ARGS_T>
     class DEREF_ITER_TUPLE_MAKER<T, REF_MPL_ARGS_T, 1>
@@ -86,10 +142,19 @@ namespace DETAIL
     public:
         static auto get(const T& t) -> std::tuple<typename std::iterator_traits<typename std::tuple_element<0, T>::type>::reference>
         {
+            // forward_as_tuple used to preserve the reference types in
+            // the tuple
             return std::forward_as_tuple(*std::get<0>(t));
         }
     };
 
+    /**
+     * Iterator tuple comparison helper. Returns true
+     * if any of the iterators in the same position in
+     * the two tuples are equal. This template compares
+     * the Nth iterators and recursively calls this 
+     * template to check the 1st to N-1th iterators
+     */
     template
     <typename T, std::size_t N>
     struct ITER_TUPLE_CMP
@@ -102,6 +167,10 @@ namespace DETAIL
         }
     };
 
+    /**
+     * Base case for the tuple of iterator equality checker.
+     * Returns if the first iterators in the tuples are equal
+     */
     template
     <typename T>
     struct ITER_TUPLE_CMP<T, 1>
@@ -112,6 +181,12 @@ namespace DETAIL
         }
     };
 
+    /**
+     * Tuple of iterator increment helper. This is the general
+     * case that increments the Nth iterator and recursively
+     * calls this template to increment the 1 to N - 1th
+     * iterator
+     */
     template
     <typename T, std::size_t N>
     struct ITER_TUPLE_INCR
@@ -123,6 +198,11 @@ namespace DETAIL
         }
     };
 
+    /**
+     * Base case for the tuple of iterator increment helper.
+     * Simply increments the first iterator in the tuple
+     * and returns
+     */
     template
     <typename T>
     struct ITER_TUPLE_INCR<T, 1>
@@ -163,17 +243,31 @@ namespace DETAIL
         friend class boost::iterator_core_access;
         template<typename... ARGS> friend class ZIPPED_RANGE_IMPL;
 
+        /**
+         * Dereferences this iterator and returns a temporary tuple of the reference types of
+         * all the iterator of the zipped sequences
+         */
         REF_T dereference() const
         {
             return DEREF_ITER_TUPLE_MAKER<INNER_ITERS_T, REF_MPL_ARGS_T, std::tuple_size<INNER_ITERS_T>::value>::get(m_iter_tuple);
         }
 
+        /**
+         * Check for equality with the other iterator. This returns true when any of the iterators in
+         * the tuple of zipped sequences is equal to their equivalent in the other iterator.
+         * This is to terminate this zipped range as soon as any of the zipped sequences have
+         * been fully iterated over
+         */
         using MY_TYPE = ZIPPED_ITER_IMPL<INNER_ITERS_T, REF_MPL_ARGS_T, REF_T, VAL_T>;
         bool equal(const MY_TYPE& other) const
         {
             return ITER_TUPLE_CMP<INNER_ITERS_T, std::tuple_size<INNER_ITERS_T>::value>::get(m_iter_tuple, other.m_iter_tuple);
         }
 
+        /**
+         * Increment all the iterators of the zipped sequences. This must NOT be called after this iterator
+         * reports it is equal to the "end" range of the zipped sequence
+         */
         void increment()
         {
             ITER_TUPLE_INCR<INNER_ITERS_T, std::tuple_size<INNER_ITERS_T>::value>::incr(m_iter_tuple);
