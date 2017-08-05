@@ -35,9 +35,20 @@ namespace ZIPPED_RANGE
 
 template
 <typename... ARGS>
-auto make_range(ARGS&&... args) -> typename DETAIL::ZIPPED_RANGE_TRAITS<ARGS...>::ZIPPED_RANGE
+struct RANGE
 {
-    static_assert(sizeof...(args) > 1, "Doesn't make sense to zip less than 2 sequences together");
+    using type = typename DETAIL::ZIPPED_RANGE_TRAITS<ARGS...>::ZIPPED_RANGE;
+};
+
+template
+<typename... ARGS>
+using RANGE_T = typename RANGE<ARGS...>::type;
+
+template
+<typename... ARGS>
+auto make_range(ARGS&&... args) -> RANGE_T<ARGS...>
+{
+    static_assert(sizeof...(args) > 0, "You must provide at least one sequence to iterate over");
     return boost::make_iterator_range(
         DETAIL::make_begin(args...),
         DETAIL::make_end(args...)

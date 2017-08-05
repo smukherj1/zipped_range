@@ -8,25 +8,94 @@
 
 #include "zipped_range.hpp"
 
-int main()
-{
-    std::cout << "Hello World\n";
-    std::list<int> il = { 0, 1, 2, 3 };
-    std::vector<int> iv = { 3, 2, 1, 0, 5 };
-    std::array<int, 6> ia = { 7, 8, 9, 10, 11, 12 };
-    int ica[] = { 100, 200, 300, 400, 500, 600 };
-    std::unordered_map<int, std::string> umap = { { 0, "abcd" }, { 1, "cbca" }, { 2, "bcbc" }, { 3, "foo" } };
+#define BOOST_TEST_MODULE example
+#include <boost/test/included/unit_test.hpp>
 
-    auto zipped_range = ZIPPED_RANGE::make_range(il, iv, ia, ica, umap);
-    for (const auto& t : zipped_range)
+namespace
+{
+
+// Sequences used for unit testing
+std::list<int> int_list = { 0, 1, 2, 3 };
+std::vector<int> int_vec = { 3, 2, 1, 5 };
+std::vector<int> int_vec_1 = { 3, 2, 1, 0, 5 };
+std::array<int, 6> int_array = { 7, 8, 9, 10, 11, 12 };
+int int_carray[] = { 100, 200, 300, 400, 500, 600 };
+std::unordered_map<int, std::string> int_to_str_map = { { 0, "abcd" }, { 1, "cbca" }, { 2, "bcbc" }, { 3, "foo" } };
+
+} /* namespace anonymous */
+
+BOOST_AUTO_TEST_CASE( zip_single_seq )
+{
+    auto zipped_range = ZIPPED_RANGE::make_range(int_list);
+    auto begin = int_list.begin();
+    std::size_t iters = 0;
+    for(const auto& t : zipped_range)
     {
-        auto first = std::get<0>(t);
-        auto second = std::get<1>(t);
-        auto third = std::get<2>(t);
-        auto fourth = std::get<3>(t);
-        auto fifth = std::get<4>(t);
-        std::cout << first << ", " << second << ", " << third << ", " << fourth << ", "
-            << "(" << fifth.first << " -> " << fifth.second << ")\n";
+        BOOST_TEST(std::get<0>(t) == *begin);
+
+        ++iters;
+        ++begin;
     }
-    return 0;
+
+}
+
+BOOST_AUTO_TEST_CASE( zip_two_seq_equal )
+{
+    auto zipped_range = ZIPPED_RANGE::make_range(int_list, int_vec);
+    int iters = 0;
+    auto begin_0 = int_list.begin();
+    auto begin_1 = int_vec.begin();
+    for(const auto& t : zipped_range)
+    {
+        BOOST_TEST(std::get<0>(t) == *begin_0);
+        BOOST_TEST(std::get<1>(t) == *begin_1);
+
+        ++iters;
+        ++begin_0;
+        ++begin_1;
+    }
+    BOOST_TEST(iters ==  4);
+}
+
+BOOST_AUTO_TEST_CASE( zip_two_seq_unequal )
+{
+    auto zipped_range = ZIPPED_RANGE::make_range(int_list, int_vec_1);
+    int iters = 0;
+    auto begin_0 = int_list.begin();
+    auto begin_1 = int_vec_1.begin();
+    for(const auto& t : zipped_range)
+    {
+        BOOST_TEST(std::get<0>(t) == *begin_0);
+        BOOST_TEST(std::get<1>(t) == *begin_1);
+
+        ++iters;
+        ++begin_0;
+        ++begin_1;
+    }
+    BOOST_TEST(iters ==  4);
+}
+
+BOOST_AUTO_TEST_CASE( zip_five_sequences )
+{
+    auto zipped_range = ZIPPED_RANGE::make_range(int_list, int_vec, int_array, int_carray, int_to_str_map);
+    auto ilist_it = int_list.begin();
+    auto ivec_it = int_vec.begin();
+    auto imap_it = int_to_str_map.begin();
+    std::size_t iters = 0;
+
+    for(const auto& t : zipped_range)
+    {
+        BOOST_TEST(std::get<0>(t) == *ilist_it);
+        BOOST_TEST(std::get<1>(t) == *ivec_it);
+        BOOST_TEST(std::get<2>(t) == int_array[iters]);
+        BOOST_TEST(std::get<3>(t) == int_carray[iters]);
+        BOOST_TEST((std::get<4>(t) == *imap_it));
+
+        ++iters;
+        ++ilist_it;
+        ++ivec_it;
+        ++imap_it;
+    }
+
+    BOOST_TEST(iters == 4);
 }
