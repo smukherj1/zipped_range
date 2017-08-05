@@ -9,7 +9,7 @@
 #include "zipped_range.hpp"
 
 #define BOOST_TEST_MODULE example
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 
 namespace
 {
@@ -98,4 +98,34 @@ BOOST_AUTO_TEST_CASE( zip_five_sequences )
     }
 
     BOOST_TEST(iters == 4);
+}
+
+BOOST_AUTO_TEST_CASE( zip_modify_element )
+{
+    auto map_copy = int_to_str_map;
+    auto ilist_copy = int_list;
+
+    for(auto t : ZIPPED_RANGE::make_range(map_copy, ilist_copy))
+    {
+        auto& map_item = std::get<0>(t);
+        auto& ilist_item = std::get<1>(t);
+
+        ++ilist_item;
+        map_item.second = "foobar";
+    }
+
+    // Check the elements in the copied list were actually
+    // modified as expected
+    auto ilist_begin = int_list.begin();
+    for(auto item : ilist_copy)
+    {
+        BOOST_TEST(item == (*ilist_begin + 1));
+        ++ilist_begin;
+    }
+
+    // Check the elements in the map were modified as expected
+    for(auto item : map_copy)
+    {
+        BOOST_TEST((item.second == "foobar"));
+    }
 }

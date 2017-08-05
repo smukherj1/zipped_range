@@ -6,7 +6,7 @@ BOOST_LIBDIR = $(BOOST_DIR)/stage/lib/gcc-5.3
 # this code
 CFLAGS = -Wall -std=c++11 -O2 -I$(BOOST_DIR) -I.
 CFLAGS += -Wno-missing-braces
-LDFLAGS = -L$(BOOST_LIBDIR)
+LDFLAGS = -L$(BOOST_LIBDIR) $(BOOST_LIBDIR)/libboost_unit_test_framework.a
 TARGET = test
 
 test: test.cpp zipped_range.hpp zipped_range_detail.hpp
