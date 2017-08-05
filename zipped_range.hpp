@@ -41,14 +41,11 @@ namespace ZIPPED_RANGE
 
 template
 <typename... ARGS>
-struct RANGE
-{
-    using type = typename DETAIL::ZIPPED_RANGE_TRAITS<ARGS...>::ZIPPED_RANGE;
-};
+using TRAITS = DETAIL::ZIPPED_RANGE_TRAITS<ARGS...>;
 
 template
 <typename... ARGS>
-using RANGE_T = typename RANGE<ARGS...>::type;
+using RANGE_T = typename TRAITS<ARGS...>::ZIPPED_RANGE;
 
 template
 <typename... ARGS>
